@@ -62,36 +62,20 @@ const uint32_t Colours[] =
 };
 
 const int TotalPixelCount = 60;
-const int PixelCount = 60;
+const int PixelCount = 40;
+const int StartPixel = (TotalPixelCount - PixelCount) / 2;
 const int ColourCount = sizeof Colours / sizeof Colours[0];
 int currentColour = 0;
 int currentIndex = -1;
 int nextIndex = 0;
 uint32_t nextPixelTime = 0;
 uint32_t pixelDuration = 40000;
+int mode;
 double durations[PixelCount];
 
-Adafruit_NeoPixel pixels = Adafruit_NeoPixel(PixelCount, Output::Lights, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel pixels = Adafruit_NeoPixel(TotalPixelCount, Output::Lights, NEO_GRB + NEO_KHZ800);
 Button colourButton(Input::Colour);
 Button modeButton(Input::Mode);
-
-// [0, 1, 0]
-/*double getPhase(int pixelIndex)
-{
-	double y = fabs(pixelIndex - (PixelCount / 2) / double(PixelCount / 2));
-	return acos(y) / 1.57;
-}
-
-uint32_t getPixelDuration()
-{
-	//return pixelDuration;
-
-	double t0 = getPhase(getPixelIndex(currentIndex));
-	double t1 = getPhase(getPixelIndex(nextIndex));
-	
-	return pixelDuration * PixelCount * 2 * (fabs(t1 - t0)) / 6.28;
-}
-*/
 
 void setup() 
 {
@@ -110,43 +94,32 @@ void setup()
 		double y = 1.0 - i / (PixelCount / 2.0);
 		double t = acos(y) / 1.57; // [0, 1]
 
-		Serial.println(y);
-		Serial.println(t);
+		// Serial.println(y);
+		// Serial.println(t);
 		
 		durations[i - 1] = durations[PixelCount - i] = t - lastT; 
 		
 		lastT = t;
 	}
 	
-	for (int i = 0; i < PixelCount; ++i)
-	{
-		Serial.println(durations[i]);
-	}
+	// for (int i = 0; i < PixelCount; ++i)
+	// {
+		// Serial.println(durations[i]);
+	// }
 }
 
 int getPixelIndex(int index)
 {
-	return (TotalPixelCount - PixelCount) / 2 + (PixelCount - 1) - abs(index - (PixelCount - 1));
-}
-
-// [0, 1, 0]
-double getPhase(int pixelIndex)
-{
-	double y = fabs(pixelIndex - (PixelCount / 2) / double(PixelCount / 2));
-	return acos(y) / 1.57;
+	return (PixelCount - 1) - abs(index - (PixelCount - 1));
 }
 
 uint32_t getPixelDuration()
 {
-	//return pixelDuration;
-
-	return pixelDuration * PixelCount / 2 * durations[getPixelIndex(currentIndex)];
-	
-/*	double t0 = getPhase(getPixelIndex(currentIndex));
-	double t1 = getPhase(getPixelIndex(nextIndex));
-	
-	return pixelDuration * PixelCount * 2 * (fabs(t1 - t0)) / 6.28;
-*/
+	switch (mode)
+	{
+		case 0: return pixelDuration;
+		case 1: return pixelDuration * PixelCount / 2 * durations[getPixelIndex(currentIndex)];
+	}
 }
 
 void loop() 
@@ -158,6 +131,7 @@ void loop()
 	
 	if (modeButton.Update(now))
 	{
+		mode = (mode + 1) % 2;
 	}
 
 	uint64_t durationVal = analogRead(Input::Speed);
@@ -171,11 +145,11 @@ void loop()
 	if (now > nextPixelTime)
 	{
 		if (currentIndex >= 0)
-			pixels.setPixelColor(getPixelIndex(currentIndex), pixels.Color(0,0,0));
+			pixels.setPixelColor(StartPixel + getPixelIndex(currentIndex), pixels.Color(0,0,0));
 
 		currentIndex = nextIndex;
 		
-		pixels.setPixelColor(getPixelIndex(currentIndex), colour);
+		pixels.setPixelColor(StartPixel + getPixelIndex(currentIndex), colour);
 
 		pixels.setBrightness(brightness);
 		pixels.show();
